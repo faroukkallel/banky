@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "427253646102",
+    "project_id": "banky-cf930",
+    "storage_bucket": "banky-cf930.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427253646102:android:f016b160c63578d774c637",
+        "android_client_info": {
+          "package_name": "com.banky.banky.banky"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "427253646102-4qfgoris5onqkvenejhn1phacn13d8tp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.banky.banky.banky",
+            "certificate_hash": "44663ccd60996269504c51a80ea37ad143372ca0"
+          }
+        },
+        {
+          "client_id": "427253646102-dftph9a2ngk4c914cjftq6l215rjocps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdVBwUZ0VRrjQE0komHZmk1oReshOduSI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "427253646102-dftph9a2ngk4c914cjftq6l215rjocps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "427253646102-m33q8sbdq4l7vs8osf248rv4hfi1h91b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.banky.banky.banky"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
