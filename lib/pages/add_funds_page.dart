@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -241,8 +242,14 @@ class _AddFundsPageState extends State<AddFundsPage> {
     });
 
     // Simulate payment process and navigate to PaymentCard
-    Future.delayed(Duration(seconds: 2), () {
-      Navigator.of(dialogContext).pop(); // Dismiss the dialog
+    Future.delayed(Duration(seconds: 2), () async {
+      // Dismiss the dialog
+      Navigator.of(dialogContext).pop();
+
+      // Record the transaction in Firestore
+      await _addTransactionToFirestore(totalPrice);
+
+      // Navigate to PaymentCard
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -252,5 +259,30 @@ class _AddFundsPageState extends State<AddFundsPage> {
         ),
       );
     });
+  }
+
+  Future<void> _addTransactionToFirestore(int amount) async {
+    try {
+      // Reference to Firestore
+      final firestore = FirebaseFirestore.instance;
+
+      // Document reference (assuming you are storing transactions in a collection named 'transactions')
+      final transactionDoc = firestore.collection('transactions').doc();
+
+      // Get the current user's UID
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+
+      // Add transaction details to Firestore
+      await transactionDoc.set({
+        'amount': amount.toDouble(),
+        'type': 'addition', // Indicating that this is an addition
+        'date': Timestamp.now(),
+        'description': 'Funds added via Add Funds Page',
+        'userId': uid, // Include user ID for reference
+      });
+    } catch (e) {
+      // Handle any errors that occur during Firestore operations
+      print('Error adding transaction to Firestore: $e');
+    }
   }
 }

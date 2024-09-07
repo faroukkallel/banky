@@ -115,13 +115,13 @@ class _TransferPageState extends State<TransferPage> {
       final userSnapshot = await userDoc.get();
       if (!userSnapshot.exists) {
         _showErrorDialog('Sender account not found.');
-        return;  // Do not reset here, handle reset after showing the dialog
+        return;
       }
 
       final recipientSnapshot = await recipientQuery.get();
       if (recipientSnapshot.docs.isEmpty) {
         _showErrorDialog('Recipient account not found.');
-        return;  // Do not reset here, handle reset after showing the dialog
+        return;
       }
 
       final recipientDoc = recipientSnapshot.docs.first;
@@ -132,7 +132,7 @@ class _TransferPageState extends State<TransferPage> {
 
       if (currentBalance < amount) {
         _showErrorDialog('Insufficient funds.');
-        return;  // Do not reset here, handle reset after showing the dialog
+        return;
       }
 
       // Update sender's balance
@@ -143,6 +143,9 @@ class _TransferPageState extends State<TransferPage> {
       final recipientBalance = (recipientData['balance'] as num?)?.toDouble() ?? 0.0;
       final newRecipientBalance = recipientBalance + amount;
       await FirebaseFirestore.instance.collection('users').doc(recipientUid).update({'balance': newRecipientBalance});
+
+      // Record the transaction in Firestore
+      await _addTransactionToFirestore(amount, recipientUid);
 
       _showSuccessDialog(amount);
     } catch (e) {
@@ -156,6 +159,32 @@ class _TransferPageState extends State<TransferPage> {
 
       // Resume the camera if it's paused
       qrController?.resumeCamera();
+    }
+  }
+
+  Future<void> _addTransactionToFirestore(int amount, String recipientUid) async {
+    try {
+      // Reference to Firestore
+      final firestore = FirebaseFirestore.instance;
+
+      // Document reference (assuming you are storing transactions in a collection named 'transactions')
+      final transactionDoc = firestore.collection('transactions').doc();
+
+      // Get the current user's UID
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+
+      // Add transaction details to Firestore
+      await transactionDoc.set({
+        'amount': amount.toDouble(),
+        'type': 'transfer', // Indicates this is a transfer
+        'date': Timestamp.now(),
+        'description': 'Funds transferred to $recipientUid',
+        'userId': uid, // Include user ID for reference
+        'recipientId': recipientUid, // Include recipient user ID for reference
+      });
+    } catch (e) {
+      // Handle any errors that occur during Firestore operations
+      print('Error adding transaction to Firestore: $e');
     }
   }
 

@@ -1,16 +1,12 @@
 import 'package:banky/pages/add_funds_page.dart';
 import 'package:banky/pages/transfer_page.dart';
 import 'package:banky/pages/withdraw_page.dart';
-import 'package:banky/scan_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
 import 'CreditCardManager.dart';
-import 'loginsignup/LoginScreen.dart'; // For charts
+import 'custom_drawer.dart';
 
 class HomePage extends StatelessWidget {
   HomePage({super.key});
@@ -20,8 +16,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-      AppBar(
+      appBar: AppBar(
         title: Row(
           children: [
             Expanded(
@@ -38,57 +33,42 @@ class HomePage extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.teal,
         elevation: 4.0,
-        leading: const Icon(Icons.account_balance, color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => _signOut(context),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.account_balance, color: Colors.white),
+            onPressed: () {
+              Scaffold.of(context).openDrawer(); // Open the custom drawer on tap
+            },
           ),
+        ),
+        actions: [
           const SizedBox(width: 20),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildAccountOverview(),
-            const SizedBox(height: 20),
-            _buildManageCards(context),
-          ],
-        ),
+      drawer: CustomDrawer(), // Attach the CustomDrawer
+      body: Column(
+        children: [
+          Expanded(child: _buildAccountOverview(context)),
+          Flexible(child: _buildManageCards(context)),
+          Flexible(child: _buildTransactionHistory(context)),
+        ],
       ),
     );
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    try {
-      await GoogleSignIn().signOut();
-      await FirebaseAuth.instance.signOut();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
-    } catch (e) {
-      // Handle errors here
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign out failed: $e')),
-      );
-    }
-  }
-
-  Widget _buildAccountOverview() {
+  Widget _buildAccountOverview(BuildContext context) { // Accept context as a parameter
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CupertinoActivityIndicator());
         }
 
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return Center(child: Text('No data available', style: TextStyle(fontFamily: 'SF Pro', fontSize: 16)));
+          return Center(
+            child: Text('No data available',
+                style: TextStyle(fontFamily: 'SF Pro', fontSize: 16)),
+          );
         }
 
         var userData = snapshot.data!.data() as Map<String, dynamic>;
@@ -97,23 +77,20 @@ class HomePage extends StatelessWidget {
         String profileImage = userData['pdp'] ?? '';
 
         return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildProfileAndBalanceSection(displayName, profileImage, balance),
-              const SizedBox(height: 20),
-              _buildActionsSection(context),
-            ],
+          padding: const EdgeInsets.all(5.0),
+          child: SizedBox.expand(
+            child: _buildProfileAndBalanceSection(
+                displayName, profileImage, balance, context), // Pass context
           ),
         );
       },
     );
   }
 
-  Widget _buildProfileAndBalanceSection(String displayName, String profileImage, double balance) {
+  Widget _buildProfileAndBalanceSection(
+      String displayName, String profileImage, double balance, BuildContext context) { // Accept context here
     return Container(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(5.0),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.teal.shade100, Colors.teal.shade50],
@@ -129,52 +106,30 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          CircleAvatar(
-            backgroundImage: profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
-            radius: 40,
-            child: profileImage.isEmpty ? Icon(Icons.person, size: 40) : null,
+          Text(
+            displayName,
+            style: TextStyle(
+              fontFamily: 'SF Pro',
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: TextStyle(
-                    fontFamily: 'SF Pro',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Account Balance',
-                  style: TextStyle(
-                    fontFamily: 'SF Pro',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '\$${balance.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontFamily: 'SF Pro',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal.shade800,
-                  ),
-                ),
-              ],
+          Text(
+            '\$${balance.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontFamily: 'SF Pro',
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.teal.shade800,
             ),
           ),
+          _buildActionsSection(context), // Pass context here
         ],
       ),
     );
@@ -182,7 +137,7 @@ class HomePage extends StatelessWidget {
 
   Widget _buildActionsSection(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _quickActionButton(
           CupertinoIcons.arrow_right_arrow_left,
@@ -212,35 +167,24 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _quickActionButton(IconData icon, String label, VoidCallback onPressed) {
+  Widget _quickActionButton(
+      IconData icon, String label, VoidCallback onPressed) {
     return Column(
       children: [
         CupertinoButton(
           padding: EdgeInsets.zero,
           child: Container(
-            decoration: BoxDecoration(
-              color: Colors.teal.shade50,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.teal.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: EdgeInsets.all(16), // Increased padding
+            padding: EdgeInsets.all(5),
             child: Icon(icon, color: Colors.teal.shade800, size: 30),
           ),
           onPressed: onPressed,
         ),
-        const SizedBox(height: 8), // Adjusted spacing
         Text(
           label,
           style: TextStyle(
             fontFamily: 'SF Pro',
-            fontSize: 16, // Slightly larger font size
-            fontWeight: FontWeight.w600, // Slightly bolder font weight
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
             color: Colors.teal.shade800,
           ),
         ),
@@ -258,36 +202,36 @@ class HomePage extends StatelessWidget {
             CupertinoPageRoute(builder: (context) => CreditCardManagerPage()),
           );
         },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(4, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Card Settings',
-                style: TextStyle(
-                  fontFamily: 'SF Pro Display',
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal.shade800,
+        child: SizedBox.expand(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(4, 8),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                child: Material(
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Card Settings',
+                  style: TextStyle(
+                    fontFamily: 'SF Pro Display',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal.shade800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Material(
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(25),
@@ -295,7 +239,8 @@ class HomePage extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        CupertinoPageRoute(builder: (context) => CreditCardManagerPage()),
+                        CupertinoPageRoute(
+                            builder: (context) => CreditCardManagerPage()),
                       );
                     },
                     child: Ink(
@@ -307,11 +252,13 @@ class HomePage extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 32),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 32),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(CupertinoIcons.creditcard, color: Colors.white, size: 24),
+                          Icon(CupertinoIcons.creditcard,
+                              color: Colors.white, size: 24),
                           const SizedBox(width: 14),
                           const Text(
                             'Go to Card Manager',
@@ -327,11 +274,71 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTransactionHistory(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('transactions')
+          .where('userId', isEqualTo: uid)
+          .orderBy('date', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CupertinoActivityIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text('No transactions available',
+                style: TextStyle(fontFamily: 'SF Pro', fontSize: 16)),
+          );
+        }
+
+        var transactions = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: transactions.length,
+          itemBuilder: (context, index) {
+            var transaction = transactions[index].data() as Map<String, dynamic>;
+            String type = transaction['type'];
+            double amount = transaction['amount'];
+            String description = transaction['description'];
+            DateTime date = (transaction['date'] as Timestamp).toDate();
+
+            return ListTile(
+              contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              leading: Icon(
+                type == 'withdrawal'
+                    ? CupertinoIcons.minus_circle
+                    : type == 'addition'
+                    ? CupertinoIcons.plus_circle
+                    : CupertinoIcons.creditcard,
+                color: type == 'withdrawal'
+                    ? Colors.red
+                    : type == 'addition'
+                    ? Colors.green
+                    : Colors.blue,
+              ),
+              title: Text(description),
+              subtitle: Text('${date.toLocal()}'),
+              trailing: Text(
+                '\$${amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: type == 'withdrawal' ? Colors.red : Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

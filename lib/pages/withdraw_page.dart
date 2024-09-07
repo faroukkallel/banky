@@ -84,6 +84,9 @@ class _WithdrawPageState extends State<WithdrawPage> with SingleTickerProviderSt
       final newBalance = _balance - amount;
       await userDocRef.update({'balance': newBalance});
 
+      // Record the transaction in Firestore
+      await _addTransactionToFirestore(amount);
+
       // Update local balance
       setState(() {
         _balance = newBalance;
@@ -92,6 +95,31 @@ class _WithdrawPageState extends State<WithdrawPage> with SingleTickerProviderSt
       _showSuccessDialog(context, 'Withdrawal successful.');
     } catch (e) {
       _showErrorDialog(context, 'An error occurred: $e');
+    }
+  }
+
+  Future<void> _addTransactionToFirestore(double amount) async {
+    try {
+      // Reference to Firestore
+      final firestore = FirebaseFirestore.instance;
+
+      // Document reference (assuming you are storing transactions in a collection named 'transactions')
+      final transactionDoc = firestore.collection('transactions').doc();
+
+      // Get the current user's UID
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+
+      // Add transaction details to Firestore
+      await transactionDoc.set({
+        'amount': amount,
+        'type': 'withdrawal', // Indicates this is a withdrawal
+        'date': Timestamp.now(),
+        'description': 'Withdrawn \$${amount.toStringAsFixed(2)}',
+        'userId': uid, // Include user ID for reference
+      });
+    } catch (e) {
+      // Handle any errors that occur during Firestore operations
+      print('Error adding transaction to Firestore: $e');
     }
   }
 
