@@ -121,6 +121,13 @@ class _WebViewPageState extends State<WebViewPage> {
         onPageFinished: (String url) async {
           // Ensure _processPayment is only called once
           if (url == 'https://gateway.sandbox.konnect.network/payment-success') {
+            final user = FirebaseAuth.instance.currentUser;
+            final uid = user?.uid;
+            final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+
+            userRef.update({
+              'balance': FieldValue.increment(widget.totalPrice.toInt()),
+            });
             if (!_balanceUpdated) {
               await _processPayment();
               _balanceUpdated = true; // Set flag to prevent further updates

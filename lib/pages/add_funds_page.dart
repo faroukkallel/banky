@@ -12,6 +12,7 @@ class AddFundsPage extends StatefulWidget {
 
 class _AddFundsPageState extends State<AddFundsPage> {
   int? totalPrice; // Variable to store the selected amount
+  TextEditingController _customAmountController = TextEditingController(); // Controller for custom amount
 
   @override
   Widget build(BuildContext context) {
@@ -32,12 +33,6 @@ class _AddFundsPageState extends State<AddFundsPage> {
               _buildAmountOptions(context),
               SizedBox(height: 20),
               _buildCustomAmountField(),
-
-              SizedBox(height: 30),
-
-              _buildSectionHeader(context, 'Payment Method'),
-              SizedBox(height: 10),
-              _buildCreditCardOption(),
 
               SizedBox(height: 30),
 
@@ -112,6 +107,7 @@ class _AddFundsPageState extends State<AddFundsPage> {
       onTap: () {
         setState(() {
           totalPrice = value; // Set the selected amount
+          _customAmountController.text = value.toString(); // Set the custom amount field
         });
       },
       child: Container(
@@ -138,6 +134,7 @@ class _AddFundsPageState extends State<AddFundsPage> {
 
   Widget _buildCustomAmountField() {
     return CupertinoTextField(
+      controller: _customAmountController, // Attach the controller
       placeholder: 'Enter custom amount',
       prefix: Padding(
         padding: const EdgeInsets.only(left: 8),
@@ -156,36 +153,6 @@ class _AddFundsPageState extends State<AddFundsPage> {
           totalPrice = int.tryParse(value); // Update the custom amount
         });
       },
-    );
-  }
-
-  Widget _buildCreditCardOption() {
-    return GestureDetector(
-      onTap: () {
-        // Handle credit card selection
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: CupertinoColors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: CupertinoColors.systemGrey, width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.systemGrey.withOpacity(0.1),
-              blurRadius: 6,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(CupertinoIcons.creditcard, color: CupertinoColors.systemBlue, size: 24),
-            SizedBox(width: 10),
-            Text('Credit Card', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-      ),
     );
   }
 
