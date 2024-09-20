@@ -1,63 +1,82 @@
-Future<void> _handleWithdraw(BuildContext context) async {
-  final amountText = _amountController.text;
-  if (amountText.isEmpty) {
-    _showErrorDialog(context, 'Please enter an amount.');
-    return;
+class _WithdrawPageState extends State<WithdrawPage> with SingleTickerProviderStateMixin {
+  final TextEditingController _amountController = TextEditingController();
+  final List<String> _paymentMethods = ['Credit Card', 'PayPal', 'Bank Transfer'];
+  String _selectedPaymentMethod = 'Select payment method';
+  late AnimationController _animationController;
+  late Animation<double> _buttonAnimation;
+  User? _currentUser;
+  double _balance = 0.0;
+  String _displayName = 'User'; // Added variable to store display name
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _buttonAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    _animationController.forward();
+    _getCurrentUser();
   }
 
-  final amount = double.tryParse(amountText);
-  if (amount == null || amount <= 0) {
-    _showErrorDialog(context, 'Please enter a valid amount.');
-    return;
+  void _getCurrentUser() async {
+    try {
+      _currentUser = FirebaseAuth.instance.currentUser;
+      if (_currentUser != null) {
+        _fetchUserData(); // Changed method name to reflect fetching of both data
+      }
+    } catch (e) {
+      print('Error getting current user: $e');
+    }
   }
 
-  if (_balance < amount) {
-    _showErrorDialog(context, 'Insufficient balance.');
-    return;
+  Future<void> _fetchUserData() async { // Merged balance and displayName fetching
+    if (_currentUser == null) return;
+
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
+
+    try {
+      final userDoc = await userDocRef.get();
+      if (userDoc.exists) {
+        setState(() {
+          _balance = (userDoc['balance'] as int).toDouble(); // Convert int to double for consistency
+          _displayName = userDoc['displayName'] ?? 'User'; // Fetch display name
+        });
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+    }
   }
 
-  final userDocRef = FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
-
-  try {
-    // Deduct amount
-    final newBalance = _balance - amount;
-    await userDocRef.update({'balance': newBalance});
-
-    // Record the transaction in Firestore
-    await _addTransactionToFirestore(amount);
-
-    // Update local balance
-    setState(() {
-      _balance = newBalance;
-    });
-
-    _showSuccessDialog(context, 'Withdrawal successful.');
-  } catch (e) {
-    _showErrorDialog(context, 'An error occurred: $e');
+  Widget _buildUserProfile() {
+    return Row(
+      children: [
+        CircleAvatar(
+          backgroundColor: Colors.blue,
+          child: Icon(Icons.person, color: Colors.white, size: 36),
+          radius: 30,
+        ),
+        SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _displayName, // Use the fetched display name
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Available Balance: \$${_balance.toStringAsFixed(0)}', // Display as integer
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ],
+    );
   }
-}
 
-Future<void> _addTransactionToFirestore(double amount) async {
-  try {
-    // Reference to Firestore
-    final firestore = FirebaseFirestore.instance;
-
-    // Document reference (assuming you are storing transactions in a collection named 'transactions')
-    final transactionDoc = firestore.collection('transactions').doc();
-
-    // Get the current user's UID
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    // Add transaction details to Firestore
-    await transactionDoc.set({
-      'amount': amount,
-      'type': 'withdrawal', // Indicates this is a withdrawal
-      'date': Timestamp.now(),
-      'description': 'Withdrawn \$${amount.toStringAsFixed(2)}',
-      'userId': uid, // Include user ID for reference
-    });
-  } catch (e) {
-    // Handle any errors that occur during Firestore operations
-    print('Error adding transaction to Firestore: $e');
-  }
+// The rest of your code remains unchanged...
 }

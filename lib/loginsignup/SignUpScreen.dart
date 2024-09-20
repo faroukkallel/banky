@@ -16,12 +16,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   TextEditingController _emailController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
+  TextEditingController _displayNameController = TextEditingController();
+
 
   String _errorMessage = '';
   bool _isLoading = false;
   bool _isPrivacyChecked = false;
 
   Future<void> _signUpWithEmailAndPassword(BuildContext context) async {
+    if (_displayNameController.text.trim().isEmpty) {
+      setState(() {
+        _errorMessage = "Please enter a display name.";
+      });
+      return;
+    }
+
     if (!_isPrivacyChecked) {
       setState(() {
         _errorMessage = "Please agree to our privacy policy.";
@@ -52,9 +61,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (!snapshot.exists) {
           await usersRef.doc(user.uid).set({
             'uid': user.uid,
-            'displayName': user.displayName,
+            'displayName': _displayNameController.text.trim(), // Save the display name
             'email': user.email,
             'FCMtoken': fcmToken,
+            'balance': 0,
             'creditCardSaved': [], // Initialize as an empty list
             'transactionHistory': [], // Initialize as an empty list
           });
@@ -143,6 +153,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                TextField(
+                  controller: _displayNameController,
+                  style: TextStyle(color: Colors.white), // Set text color to white
+                  decoration: InputDecoration(
+                    labelText: 'Display Name',
+                    prefixIcon: Icon(Icons.person, color: Colors.white), // Adjust icon color
+                    labelStyle: TextStyle(color: Colors.white), // Set label color to white
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white), // Set border color to white when the field is enabled
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white), // Set border color to white when the field is focused
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,

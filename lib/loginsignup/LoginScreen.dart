@@ -22,70 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController _emailController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
 
-  Future<void> _signInWithGoogle(BuildContext context) async {
-    final GoogleSignIn _googleSignIn = GoogleSignIn();
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-    if (googleUser == null) return;
-
-    setState(() {
-      _isLoggingIn = true;
-    });
-
-    try {
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential authResult = await _auth.signInWithCredential(credential);
-      final User? user = authResult.user;
-
-      if (user != null) {
-        String? fcmToken;
-        final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-        fcmToken = await _firebaseMessaging.getToken();
-        final usersRef = FirebaseFirestore.instance.collection('users');
-        final snapshot = await usersRef.doc(user.uid).get();
-
-        if (!snapshot.exists) {
-          await usersRef.doc(user.uid).set({
-            'uid': user.uid,
-            'displayName': user.displayName,
-            'email': user.email,
-            'FCMtoken': fcmToken,
-            'creditCardSaved': [],             // Initialize with empty list
-            'balance': 0,                      // Initialize balance with 0
-            'transactionHistory': [],          // Initialize with empty list
-          });
-        }
-
-        await usersRef.doc(user.uid).set({
-          'FCMtoken': fcmToken,
-        }, SetOptions(merge: true));
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-              (Route<dynamic> route) => false,
-        );
-      }
-
-      setState(() {
-        _isLoggingIn = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoggingIn = false;
-      });
-      log('Google Sign-In failed: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google Sign-In failed: $e')),
-      );
-    }
-  }
-
   Future<void> _signInWithEmailAndPassword(BuildContext context) async {
     setState(() {
       _isLoggingIn = true;
@@ -108,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!snapshot.exists) {
           await usersRef.doc(user.uid).set({
             'uid': user.uid,
-            'displayName': user.displayName,
+            'displayName': 'Banky User',
             'email': user.email,
             'FCMtoken': fcmToken,
             'creditCardSaved': [],             // Initialize with empty list
@@ -290,18 +226,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ],
-                ),
-              ),
-              SizedBox(height: 60), // Adjust spacing between email/password section and Google login button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: CommonButton(
-                  border: Border.all(color: AppColor.white_Color),
-                  text: "Login with Google",
-                  onTap: () {
-                    _signInWithGoogle(context);
-                  },
-                  textStyle: const TextStyle(fontFamily: "Rubik", fontSize: 14, color: AppColor.white_Color),
                 ),
               ),
             ],
