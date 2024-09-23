@@ -1,82 +1,74 @@
-class _WithdrawPageState extends State<WithdrawPage> with SingleTickerProviderStateMixin {
-  final TextEditingController _amountController = TextEditingController();
-  final List<String> _paymentMethods = ['Credit Card', 'PayPal', 'Bank Transfer'];
-  String _selectedPaymentMethod = 'Select payment method';
-  late AnimationController _animationController;
-  late Animation<double> _buttonAnimation;
-  User? _currentUser;
-  double _balance = 0.0;
-  String _displayName = 'User'; // Added variable to store display name
+class _WebViewPageState extends State<WebViewPage> {
+  bool _balanceUpdated = false; // Track if balance has been updated
 
   @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Payment View'),
+      ),
+      body: WebView(
+        initialUrl: widget.url,
+        javascriptMode: JavascriptMode.unrestricted,
+        onPageFinished: (String url) async {
+          if (url == 'https://gateway.sandbox.konnect.network/payment-success') {
+            if (!_balanceUpdated) {
+              await _processPayment(); // Only call once
+              _balanceUpdated = true; // Set the flag to prevent further updates
+            }
+            _showModernSnackBar(context, 'Payment was successful!', Colors.green);
+            Future.delayed(Duration(seconds: 2), () {
+              Navigator.pop(context); // Close the WebView page
+            });
+          } else if (url == 'https://gateway.sandbox.konnect.network/payment-failure') {
+            _showModernSnackBar(context, 'Payment has failed.', Colors.red);
+            Future.delayed(Duration(seconds: 2), () {
+              Navigator.pop(context); // Close the WebView page
+            });
+          }
+        },
+      ),
     );
-    _buttonAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-    _animationController.forward();
-    _getCurrentUser();
   }
 
-  void _getCurrentUser() async {
+  Future<void> _processPayment() async {
     try {
-      _currentUser = FirebaseAuth.instance.currentUser;
-      if (_currentUser != null) {
-        _fetchUserData(); // Changed method name to reflect fetching of both data
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final uid = user.uid;
+        final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+        final paymentStatusRef = userRef.collection('payments').doc('latest');
+
+        final paymentDoc = await paymentStatusRef.get();
+
+        // Only update if the payment status is not already set to completed
+        if (!paymentDoc.exists || paymentDoc.data()?['status'] != 'completed') {
+          await _updateBalance(userRef); // Update balance
+          // Set payment status to completed
+          await paymentStatusRef.set({
+            'status': 'completed',
+            'amount': widget.totalPrice,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
       }
-    } catch (e) {
-      print('Error getting current user: $e');
+    } catch (error) {
+      print('Error processing payment: $error');
     }
   }
 
-  Future<void> _fetchUserData() async { // Merged balance and displayName fetching
-    if (_currentUser == null) return;
-
-    final userDocRef = FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
-
+  Future<void> _updateBalance(DocumentReference userRef) async {
     try {
-      final userDoc = await userDocRef.get();
+      final userDoc = await userRef.get();
       if (userDoc.exists) {
-        setState(() {
-          _balance = (userDoc['balance'] as int).toDouble(); // Convert int to double for consistency
-          _displayName = userDoc['displayName'] ?? 'User'; // Fetch display name
-        });
+        // Cast the data to Map<String, dynamic>
+        final data = userDoc.data() as Map<String, dynamic>;
+        final currentBalance = data['balance'] ?? 0;
+        final newBalance = currentBalance + widget.totalPrice.toInt(); // Update balance
+        await userRef.update({'balance': newBalance}); // Ensure this updates correctly
       }
-    } catch (e) {
-      print('Error fetching user data: $e');
+    } catch (error) {
+      print('Error updating balance: $error');
     }
   }
-
-  Widget _buildUserProfile() {
-    return Row(
-      children: [
-        CircleAvatar(
-          backgroundColor: Colors.blue,
-          child: Icon(Icons.person, color: Colors.white, size: 36),
-          radius: 30,
-        ),
-        SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _displayName, // Use the fetched display name
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Available Balance: \$${_balance.toStringAsFixed(0)}', // Display as integer
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-// The rest of your code remains unchanged...
 }

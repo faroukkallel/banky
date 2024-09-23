@@ -108,6 +108,7 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage> {
   bool _balanceUpdated = false; // Track if balance has been updated
+  bool _paymentProcessed = false; // Track if payment has already been processed
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +121,8 @@ class _WebViewPageState extends State<WebViewPage> {
         javascriptMode: JavascriptMode.unrestricted,
         onPageFinished: (String url) async {
           // Ensure _processPayment is only called once
-          if (url == 'https://gateway.sandbox.konnect.network/payment-success') {
+          if (url == 'https://gateway.sandbox.konnect.network/payment-success' && !_paymentProcessed) {
+            _paymentProcessed = true; // Prevent further processing
             final user = FirebaseAuth.instance.currentUser;
             final uid = user?.uid;
             final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
@@ -128,18 +130,24 @@ class _WebViewPageState extends State<WebViewPage> {
             userRef.update({
               'balance': FieldValue.increment(widget.totalPrice.toInt()),
             });
+
             if (!_balanceUpdated) {
-              await _processPayment();
+              await _processPayment(userRef); // Pass userRef to process payment
               _balanceUpdated = true; // Set flag to prevent further updates
             }
+
             _showModernSnackBar(context, 'Payment was successful!', Colors.green);
-            Future.delayed(Duration(seconds: 2), () {
+            Future.delayed(Duration(seconds: 1), () {
               Navigator.pop(context); // Close the WebView page
+              Navigator.pop(context);
+              Navigator.pop(context);
             });
           } else if (url == 'https://gateway.sandbox.konnect.network/payment-failure') {
             _showModernSnackBar(context, 'Payment has failed.', Colors.red);
-            Future.delayed(Duration(seconds: 2), () {
+            Future.delayed(Duration(seconds: 1), () {
               Navigator.pop(context); // Close the WebView page
+              Navigator.pop(context);
+              Navigator.pop(context);
             });
           }
         },
@@ -157,27 +165,22 @@ class _WebViewPageState extends State<WebViewPage> {
     );
   }
 
-  Future<void> _processPayment() async {
+  Future<void> _processPayment(DocumentReference userRef) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final uid = user.uid;
-        final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-        final paymentStatusRef = userRef.collection('payments').doc('latest'); // Use a fixed document ID for simplicity
+      final paymentStatusRef = userRef.collection('payments').doc('latest'); // Use a fixed document ID for simplicity
 
-        final paymentDoc = await paymentStatusRef.get();
+      final paymentDoc = await paymentStatusRef.get();
 
-        if (!paymentDoc.exists) {
-          // Update the balance if payment status is not set
-          await _updateBalance(userRef);
+      if (!paymentDoc.exists) {
+        // Update the balance if payment status is not set
+        await _updateBalance(userRef);
 
-          // Set payment status to completed
-          await paymentStatusRef.set({
-            'status': 'completed',
-            'amount': widget.totalPrice,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-        }
+        // Set payment status to completed
+        await paymentStatusRef.set({
+          'status': 'completed',
+          'amount': widget.totalPrice,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
       }
     } catch (error) {
       print('Error processing payment: $error');
